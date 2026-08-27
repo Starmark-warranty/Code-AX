@@ -5,8 +5,8 @@
       แล้วเพิ่มบรรทัด CHANGELOG ใหม่ไว้บนสุด (ห้ามลบของเก่า)
 
   APP      : ส่งตั้ง Code AX  (Task Dispatch)
-  VERSION  : 1.2
-  BUILD    : 2026-08-27 / dark-theme
+  VERSION  : 1.2.1
+  BUILD    : 2026-08-27 / logo-badge
   FILE     : index.html
   STACK    : single-file HTML + Supabase (CDN) · ไม่มี build step
   URL      : https://starmark-warranty.github.io/Code-AX/   <-- ลิงก์ใช้งานจริง
@@ -16,6 +16,17 @@
                  copyNewApp / initMoveNotice ซ้ำอีก
 
   --- CHANGELOG (ใหม่สุดอยู่บนสุด) -----------------------------------
+  v1.2.1 2026-08-27 FIX  โลโก้ธีมมืดสีเพี้ยน (หน้าโหลด + หน้า Welcome)
+                    v1.2 กลับสีโลโก้ด้วย invert() -> ตัวหนังสือขาวแต่ดาวเพี้ยนสี
+                    และพื้นขาวของไฟล์กลายเป็นกล่องดำล้อมรอบ
+                    เหตุ: ไฟล์โลโก้เป็น PNG พื้นขาวทึบ ไม่ใช่พื้นโปร่ง
+                    ธีมสว่างจึงต้องพึ่ง mix-blend-mode:multiply มาตลอด
+                    ซึ่งบนพื้นมืดจะกลืนโลโก้หายทั้งอัน
+                    -> เลิกแตะสีโลโก้ ใช้พื้นขาวมน + ระยะขอบรองแทน
+                       (--logo-bg / --logo-pad / --logo-radius)
+                    >>> ถ้าวันไหนได้ไฟล์โลโก้พื้นโปร่ง (PNG/SVG) มาแทน
+                        ให้ตั้ง --logo-bg เป็น transparent ทั้งสองธีมได้เลย
+                        แล้ว multiply ก็ไม่จำเป็นอีก
   v1.2  2026-08-27  FEAT  ธีมมืด
                     ปุ่มพระจันทร์/พระอาทิตย์ มุมขวาล่าง (#themeBtn) จำค่าไว้ใน
                     localStorage คีย์ dispatch_theme
@@ -92,6 +103,9 @@
   --welcome-bg: linear-gradient(160deg,#e8eaf6 0%,#f0f0f5 40%,#e8f4fd 100%);
   --logo-blend:  multiply;
   --logo-filter: none;
+  --logo-bg:     transparent;
+  --logo-pad:    0;
+  --logo-radius: 0;
   --icon-sender: linear-gradient(145deg,#e3f0ff,#d0e8ff);
   --icon-worker: linear-gradient(145deg,#fff4e0,#ffe8c0);
   --warm-strong: rgba(255,250,240,0.95);
@@ -118,6 +132,10 @@
 img[alt="Starmark"], img[alt="STARMARK"] {
   mix-blend-mode: var(--logo-blend) !important;
   filter: var(--logo-filter);
+  background: var(--logo-bg);
+  padding: var(--logo-pad);
+  border-radius: var(--logo-radius);
+  box-sizing: content-box;
 }
 
 /* ─── ปุ่มสลับธีม ─── */
@@ -175,7 +193,10 @@ html[data-theme="dark"] {
   --soft4:     rgba(33,33,38,0.90);
   --welcome-bg: linear-gradient(160deg,#15151f 0%,#0e0e11 40%,#0c1520 100%);
   --logo-blend:  normal;
-  --logo-filter: invert(1) brightness(1.55);
+  --logo-filter: none;
+  --logo-bg:     #ffffff;
+  --logo-pad:    7px 12px;
+  --logo-radius: 12px;
   --icon-sender: linear-gradient(145deg,#123055,#0d2440);
   --icon-worker: linear-gradient(145deg,#4a3413,#332208);
   --warm-strong: rgba(58,44,20,0.95);
