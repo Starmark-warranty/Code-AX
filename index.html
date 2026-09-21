@@ -5,8 +5,8 @@
       แล้วเพิ่มบรรทัด CHANGELOG ใหม่ไว้บนสุด (ห้ามลบของเก่า)
 
   APP      : ส่งตั้ง Code AX  (Task Dispatch)
-  VERSION  : 1.2.1
-  BUILD    : 2026-08-27 / logo-badge
+  VERSION  : 1.2.3
+  BUILD    : 2026-09-21 / presence
   FILE     : index.html
   STACK    : single-file HTML + Supabase (CDN) · ไม่มี build step
   URL      : https://starmark-warranty.github.io/Code-AX/   <-- ลิงก์ใช้งานจริง
@@ -14,8 +14,34 @@
              FITTING GLOBAL ADD-ON ใช้ตัวแปร sb ตัวเดียวกัน ห้ามสร้าง client ซ้ำ
              >>> ห้ามนิยาม sb / showScreen / goHome / isOnNewApp / gotoNewApp /
                  copyNewApp / initMoveNotice ซ้ำอีก
+             ONLINE PRESENCE: presenceChannel / initPresence / presenceUpdate
+             >>> ห้ามสร้าง channel นับเครื่องซ้ำ และห้าม removeChannel ตัวนี้ใน goHome
 
   --- CHANGELOG (ใหม่สุดอยู่บนสุด) -----------------------------------
+  v1.2.3 2026-09-21 FEAT  นับเครื่องที่เปิดแอปอยู่ตอนนี้ (ดูในหน้าตั้งค่า ต้องใส่รหัสแอดมิน)
+                    เหตุ: เจ้าของอยากรู้ว่ามีกี่เครื่อง/ใครเปิดลิงก์อยู่
+                    · ใช้ Supabase Realtime Presence ไม่สร้างตาราง ไม่ยิง query เข้าฐานข้อมูล
+                      จึงไม่เพิ่มโหลดแบบเรื่อง Fitting Global
+                    · 1 เครื่อง = 1 รายการ (DEVICE_ID ใน localStorage คีย์ dispatch_device_id)
+                      เปิดหลายแท็บก็นับเครื่องเดียว บอกจำนวนแท็บให้
+                    · แต่ละเครื่องส่ง: โหมด (หน้าแรก/ส่งงาน/รับงาน) · ชื่อที่เคยกรอกตอนส่งงาน
+                      · ชนิดเครื่อง · เบราว์เซอร์ · เวอร์ชันไฟล์ · เวลาที่เปิด
+                    · ปิดแท็บ/เน็ตหลุด = หายจากรายการเองภายในไม่กี่วินาที
+                    · เวอร์ชันอ่านจากบรรทัด VERSION หัวไฟล์นี้ตอนรัน ไม่ต้องแก้สองที่
+                    · ผลข้างเคียง: ทุกเครื่องที่เปิดอยู่ถือ websocket ค้างไว้ตลอด
+                      (เดิมหน้าแรกไม่ต่อ realtime) นับรวมในโควตา concurrent ของ Realtime
+                    · ข้อมูล presence วิ่งไปทุกเครื่องในช่องเดียวกัน คนเปิด devtools เห็นได้
+                      จึงส่งแค่ข้อมูลที่ไม่ลับ (ชื่อผู้ส่งเห็นในคิวอยู่แล้ว)
+                    · เครื่องที่ยังเปิดไฟล์ก่อน 1.2.3 จะไม่ถูกนับ
+                    · ยังไม่ได้ทดสอบกับ Supabase จริง ทดสอบกับตัวจำลองใน jsdom เท่านั้น
+  v1.2.2 2026-09-21 CHANGE ปิด Fitting Global ชั่วคราว (สวิตช์ FG_ENABLED = false)
+                    เหตุ: สงสัยว่าคนใช้ค้นหา/Export บนตาราง fitting_global (~157k แถว)
+                    แล้วฐานข้อมูลตัวเดียวกับแอปหลักรับโหลดหนักจนคนอื่นเข้าไม่ได้
+                    (ค้นแบบ ilike %คำ% สามคอลัมน์ + Export ดึงทั้งตารางทีละ 1000 แถว)
+                    · ถอดกล่อง #fgOv ออก ไม่ใส่ปุ่มบน head bar ไม่ยิงคำขอไป fitting_global เลย
+                    · โค้ดเดิมเก็บไว้ครบ ไม่ได้ลบ เปิดคืนได้ด้วยการตั้ง FG_ENABLED = true
+                    · มีผลกับเครื่องที่โหลดหน้าใหม่แล้วเท่านั้น หน้าเก่าที่เปิดค้างยังกดได้อยู่
+                    · ยังไม่ได้ทดสอบบนมือถือ/ลิงก์จริง ทดสอบแค่รันสคริปต์ส่วนนี้แยก
   v1.2.1 2026-08-27 FIX  โลโก้ธีมมืดสีเพี้ยน (หน้าโหลด + หน้า Welcome)
                     v1.2 กลับสีโลโก้ด้วย invert() -> ตัวหนังสือขาวแต่ดาวเพี้ยนสี
                     และพื้นขาวของไฟล์กลายเป็นกล่องดำล้อมรอบ
@@ -785,6 +811,20 @@ body {
 .settings-row { display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;background:var(--s2);border:1px solid var(--border);border-radius:9px; }
 .settings-row-label { font-size:13px;color:var(--text);font-weight:500; }
 .settings-row-sub { font-size:11px;color:var(--text3);margin-top:1px; }
+/* ─── เครื่องที่เปิดอยู่ตอนนี้ (ONLINE PRESENCE) · อยู่ในหน้าตั้งค่า ─── */
+.ol-sum { display:flex;align-items:center;gap:8px;padding:9px 11px;background:var(--s2);border:1px solid var(--border);border-radius:9px; }
+.ol-count { font-size:24px;font-weight:700;color:var(--text);line-height:1; }
+.ol-unit { font-size:12px;color:var(--text2); }
+.ol-break { margin-left:auto;font-size:11px;color:var(--text3);text-align:right;line-height:1.5; }
+.ol-list { display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto; }
+.ol-row { display:flex;align-items:center;gap:9px;padding:7px 10px;background:var(--s2);border:1px solid var(--border);border-radius:9px; }
+.ol-row.self { border-color:var(--accent); }
+.ol-ico { font-size:18px;flex-shrink:0;width:22px;text-align:center; }
+.ol-main { flex:1;min-width:0; }
+.ol-name { font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.ol-meta { font-size:11px;color:var(--text3);margin-top:1px; }
+.ol-note { font-size:11px;color:var(--text3);padding:0 2px;line-height:1.5; }
+.mode-pill.home { background:var(--s3);color:var(--text2);border:1px solid var(--border); }
 /* Toggle switch */
 .toggle-wrap { position:relative;width:40px;height:22px;flex-shrink:0; }
 .toggle-wrap input { opacity:0;width:0;height:0;position:absolute; }
@@ -1086,6 +1126,17 @@ body {
 
 <script>
 (function(){
+  // ── สวิตช์เปิด/ปิด Fitting Global (v1.2.2) ──
+  // false = ปิด : ถอดกล่องออกจากหน้า ไม่ใส่ปุ่มบน head bar และไม่ยิงคำขอใด ๆ ไปที่ตาราง fitting_global
+  // true  = เปิด: ทำงานเหมือนเดิมทุกอย่าง
+  // >>> จะเปิดคืน เปลี่ยนเป็น true บรรทัดเดียว แล้วบวกเลข VERSION + เขียน CHANGELOG
+  var FG_ENABLED = false;
+  if(!FG_ENABLED){
+    var ov=document.getElementById('fgOv'); if(ov) ov.remove();   // กล่องอยู่ก่อนสคริปต์นี้ จึงหาเจอแน่นอน
+    window.openFG=function(){}; window.closeFG=function(){};       // กันใครเรียกค้างไว้แล้วพัง
+    return;
+  }
+
   function db(){ return sb.from('fitting_global'); }
   window.fgP=0; window.fgPS=50; var fgTC=0; window.fgTP=1;
   var fgQ='', fgSC='recid', fgSA=false, fgST, fgTriedFallback=false;  // default: เรียงตาม RECID จาก AX (มากสุด = ล่าสุด) — ไม่แสดงคอลัมน์นี้ ใช้เรียงอย่างเดียว
@@ -1294,7 +1345,7 @@ body {
       <div class="form-group">
         <div class="form-label">ชื่อของคุณ</div>
         <input type="text" class="form-input" id="senderName" placeholder="เช่น สมชาย, แผนก A"
-          oninput="localStorage.setItem('dispatch_sender_name', this.value)">
+          oninput="localStorage.setItem('dispatch_sender_name', this.value)" onchange="presenceUpdate()">
       </div>
 
       <!-- ─── DEPARTMENT FIELD ─── -->
@@ -1725,6 +1776,12 @@ function _openSettingsPanel(overlay) {
         <button class="settings-close" onclick="closeSettings()">✕</button>
       </div>
       <div class="settings-body">
+
+        <!-- ── เครื่องที่เปิดอยู่ตอนนี้ (อัปเดตสดจาก presence) ── -->
+        <div class="settings-section">
+          <div class="settings-section-label">📡 เครื่องที่เปิดอยู่ตอนนี้</div>
+          <div id="onlineList">${buildOnlineListHTML()}</div>
+        </div>
 
         <!-- ── การแสดงเวลา ── -->
         <div class="settings-section">
@@ -2228,6 +2285,179 @@ function initMoveNotice() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initMoveNotice);
 else initMoveNotice();
 
+// ─── ONLINE PRESENCE · นับเครื่องที่เปิดแอปอยู่ตอนนี้ (v1.2.3) ───
+// · วิ่งบน Supabase Realtime Presence ล้วน ไม่แตะตาราง ไม่ยิง query เข้าฐานข้อมูล
+// · key = DEVICE_ID ของเครื่อง เปิดหลายแท็บก็รวมเป็นรายการเดียว
+// · ปิดแท็บ / เน็ตหลุด = Realtime เอาออกจากรายการให้เอง
+// · channel นี้อยู่ตลอดอายุหน้า ห้าม removeChannel ใน goHome
+// >>> ข้อมูลจากเครื่องอื่นเชื่อไม่ได้ ต้องผ่าน escHtml ก่อนแสดงทุกครั้ง และห้ามใส่ลง attribute
+
+// เวอร์ชันอ่านจากบรรทัด VERSION ในบล็อกหัวไฟล์ เพื่อไม่ต้องแก้เลขสองที่
+const APP_VERSION = (() => {
+  for (const n of document.childNodes) {
+    if (n.nodeType === 8) { const m = /VERSION\s*:\s*([\d.]+)/.exec(n.nodeValue || ''); if (m) return m[1]; }
+  }
+  return '?';
+})();
+
+const DEVICE_ID = (() => {
+  try {
+    let id = localStorage.getItem('dispatch_device_id');
+    if (!id) {
+      id = 'd' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+      localStorage.setItem('dispatch_device_id', id);
+    }
+    return id;
+  } catch (e) {
+    return 't' + Math.random().toString(36).slice(2, 12);   // localStorage ใช้ไม่ได้ = นับเป็นเครื่องใหม่ทุกครั้งที่เปิด
+  }
+})();
+const OPENED_AT = Date.now();
+
+let presenceChannel = null;
+let presenceStatus  = 'connecting';   // connecting | ok | error
+let onlineDevices   = [];             // [{ key, self, tabs, mode, name, device, browser, ver, since }]
+
+function deviceLabel() {
+  const ua = navigator.userAgent || '';
+  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'iPad';
+  if (/iPhone|iPod/.test(ua)) return 'iPhone';
+  if (/Android/.test(ua))     return /Mobile/.test(ua) ? 'มือถือ Android' : 'แท็บเล็ต Android';
+  if (/Windows/.test(ua))     return 'คอม Windows';
+  if (/Macintosh/.test(ua))   return 'Mac';
+  if (/CrOS/.test(ua))        return 'Chromebook';
+  if (/Linux/.test(ua))       return 'Linux';
+  return 'ไม่ทราบชนิด';
+}
+
+function browserLabel() {
+  const ua = navigator.userAgent || '';
+  if (/\bLine\//i.test(ua))      return 'LINE';          // เปิดลิงก์จากในแชท LINE
+  if (/FBAN|FBAV/.test(ua))       return 'Facebook';
+  if (/Edg\//.test(ua))           return 'Edge';
+  if (/SamsungBrowser/.test(ua))  return 'Samsung';
+  if (/Firefox|FxiOS/.test(ua))   return 'Firefox';
+  if (/Chrome|CriOS/.test(ua))    return 'Chrome';
+  if (/Safari/.test(ua))          return 'Safari';
+  return 'อื่น ๆ';
+}
+
+function presencePayload() {
+  let name = '';
+  try { name = (localStorage.getItem('dispatch_sender_name') || '').trim().slice(0, 40); } catch (e) {}
+  return {
+    mode: currentMode || 'home',
+    name,
+    device: deviceLabel(),
+    browser: browserLabel(),
+    ver: APP_VERSION,
+    since: OPENED_AT
+  };
+}
+
+function initPresence() {
+  if (presenceChannel || typeof sb === 'undefined') return;
+  try {
+    presenceChannel = sb.channel('online-devices', { config: { presence: { key: DEVICE_ID } } });
+    presenceChannel
+      .on('presence', { event: 'sync' }, onPresenceSync)
+      .subscribe(status => {
+        // หลุดแล้วต่อใหม่ supabase-js จะเรียก SUBSCRIBED ซ้ำ -> track ใหม่ตรงนี้ได้เลย
+        if (status === 'SUBSCRIBED') {
+          presenceStatus = 'ok';
+          presenceChannel.track(presencePayload()).catch(() => {});
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          presenceStatus = 'error';
+        }
+        renderOnlineList();
+      });
+  } catch (e) {
+    console.error('initPresence:', e);
+    presenceStatus = 'error';
+  }
+}
+
+// เรียกเมื่อโหมดหรือชื่อเปลี่ยน ให้เครื่องอื่นเห็นค่าล่าสุด
+function presenceUpdate() {
+  if (!presenceChannel || presenceStatus !== 'ok') return;   // ยังไม่ต่อ = เดี๋ยว SUBSCRIBED จะ track ค่าล่าสุดเอง
+  try { presenceChannel.track(presencePayload()).catch(() => {}); } catch (e) {}
+}
+
+function onPresenceSync() {
+  const st = presenceChannel.presenceState() || {};
+  const MODE_ORDER = { worker: 0, sender: 1, home: 2 };
+  onlineDevices = Object.keys(st).map(key => {
+    const metas = Array.isArray(st[key]) ? st[key] : [];
+    const last  = metas[metas.length - 1] || {};
+    const since = Math.min(...metas.map(m => Number(m.since) || Date.now()));
+    return {
+      key, self: key === DEVICE_ID, tabs: metas.length,
+      mode: ['home', 'sender', 'worker'].includes(last.mode) ? last.mode : 'home',
+      name: String(last.name || '').slice(0, 40),
+      device: String(last.device || '').slice(0, 30),
+      browser: String(last.browser || '').slice(0, 20),
+      ver: String(last.ver || '?').slice(0, 12),
+      since: isFinite(since) ? since : Date.now()
+    };
+  }).sort((a, b) =>
+    (b.self - a.self) || (MODE_ORDER[a.mode] - MODE_ORDER[b.mode]) || (a.since - b.since));
+  presenceStatus = 'ok';
+  renderOnlineList();
+}
+
+function onlineSinceText(ts) {
+  const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 1)  return 'เพิ่งเปิด';
+  if (min < 60) return `เปิดมา ${min} นาที`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24)  return `เปิดมา ${hr} ชม.`;
+  return `เปิดมา ${Math.floor(hr / 24)} วัน`;
+}
+
+function buildOnlineListHTML() {
+  // ยังไม่มีรายการ (อย่างน้อยต้องเห็นเครื่องตัวเอง) = ยังโหลดไม่เสร็จ หรือเชื่อมต่อไม่ได้
+  if (!onlineDevices.length) return presenceStatus === 'error'
+    ? '<div class="ol-note" style="color:var(--red)">เชื่อมต่อระบบนับเครื่องไม่ได้ ลองโหลดหน้าใหม่</div>'
+    : '<div class="ol-note">กำลังเชื่อมต่อ...</div>';
+
+  const MODE_TXT = { worker: 'รับงาน', sender: 'ส่งงาน', home: 'หน้าแรก' };
+  const cnt = { worker: 0, sender: 0, home: 0 };
+  onlineDevices.forEach(d => cnt[d.mode]++);
+
+  const rows = onlineDevices.map(d => {
+    const ico  = /iPhone|มือถือ/.test(d.device) ? '📱' : /iPad|แท็บเล็ต/.test(d.device) ? '📲' : '💻';
+    const name = d.name ? escHtml(d.name) : '<span style="color:var(--text3)">ไม่ระบุชื่อ</span>';
+    const meta = [escHtml(d.device), escHtml(d.browser), 'v' + escHtml(d.ver), onlineSinceText(d.since)];
+    if (d.tabs > 1) meta.push(d.tabs + ' แท็บ');
+    return `
+      <div class="ol-row${d.self ? ' self' : ''}">
+        <span class="ol-ico">${ico}</span>
+        <div class="ol-main">
+          <div class="ol-name">${name}${d.self ? ' <span style="color:var(--accent);font-weight:400">(เครื่องนี้)</span>' : ''}</div>
+          <div class="ol-meta">${meta.join(' · ')}</div>
+        </div>
+        <span class="mode-pill ${d.mode}">${MODE_TXT[d.mode]}</span>
+      </div>`;
+  }).join('');
+
+  return `
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div class="ol-sum">
+        <span class="ol-count">${onlineDevices.length}</span><span class="ol-unit">เครื่อง</span>
+        <span class="ol-break">รับงาน ${cnt.worker} · ส่งงาน ${cnt.sender}<br>อยู่หน้าแรก ${cnt.home}</span>
+      </div>
+      <div class="ol-list">${rows}</div>
+      <div class="ol-note">นับเฉพาะเครื่องที่เปิดหน้านี้อยู่และใช้ไฟล์ v1.2.3 ขึ้นไป · ชื่อ = ชื่อที่เคยกรอกตอนส่งงานในเครื่องนั้น · มือถือที่พับจอนาน ๆ อาจหลุดไปก่อน พอเปิดกลับมาจะขึ้นเอง</div>
+    </div>`;
+}
+
+// วาดใหม่เฉพาะตอนหน้าตั้งค่าเปิดอยู่ (ไม่มี #onlineList = ไม่ทำอะไร)
+function renderOnlineList() {
+  const el = document.getElementById('onlineList');
+  if (el) el.innerHTML = buildOnlineListHTML();
+}
+setInterval(renderOnlineList, 30000);   // ให้ "เปิดมา X นาที" เดินเอง
+
 // ─── NAV ───
 function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 
@@ -2241,6 +2471,7 @@ function goHome() {
   document.getElementById('welcomeDateTime').style.display = 'flex';
   document.getElementById('welcomeSettingsBtn').style.display = 'flex';
   showScreen('screenWelcome');
+  presenceUpdate();
 }
 
 function enterSender() {
@@ -2266,6 +2497,7 @@ function enterSender() {
   loadMyTickets();
   loadAllQueue();
   subscribeAsSender();
+  presenceUpdate();
 }
 
 // ─── WORKER AUTH ───
@@ -2299,6 +2531,7 @@ function enterWorker() {
   subscribeDepartments();
   loadWorkerQueue();
   subscribeAsWorker();
+  presenceUpdate();
 }
 
 // ─── SENDER: SUBMIT ───
@@ -4149,6 +4382,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   updateClock();
   setInterval(updateClock, 1000);
+
+  // ── ONLINE PRESENCE: ต่อก่อนกู้เซสชัน ให้ enterSender/enterWorker อัปเดตโหมดได้ ──
+  initPresence();
 
   // ── AUTO-RESTORE SESSIONS ──
   if (sessionStorage.getItem('workerAuthed') === '1') {
