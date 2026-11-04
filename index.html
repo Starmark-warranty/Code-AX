@@ -5,8 +5,8 @@
       แล้วเพิ่มบรรทัด CHANGELOG ใหม่ไว้บนสุด (ห้ามลบของเก่า)
 
   APP      : ส่งตั้ง Code AX  (Task Dispatch)
-  VERSION  : 1.2.3
-  BUILD    : 2026-09-21 / presence
+  VERSION  : 1.2.4
+  BUILD    : 2026-11-04 / new-db
   FILE     : index.html
   STACK    : single-file HTML + Supabase (CDN) · ไม่มี build step
   URL      : https://starmark-warranty.github.io/Code-AX/   <-- ลิงก์ใช้งานจริง
@@ -18,6 +18,14 @@
              >>> ห้ามสร้าง channel นับเครื่องซ้ำ และห้าม removeChannel ตัวนี้ใน goHome
 
   --- CHANGELOG (ใหม่สุดอยู่บนสุด) -----------------------------------
+  v1.2.4 2026-11-04 CHANGE ย้ายฐานข้อมูลไปโปรเจกต์ใหม่ CODE AX (hxswugvfexwzcltdwbpz)
+                    เหตุ: โปรเจกต์เดิม (auohdroxlhwwoljjwxxl) ถูกพักเพราะบิลค้าง แอปต่อฐานข้อมูลไม่ได้
+                    · แก้แค่ SUPABASE_URL / SUPABASE_ANON โค้ดส่วนอื่นไม่แตะ
+                    · ข้อมูลที่ย้าย: ใบงาน 223 ใบ + รายชื่อแผนก จาก backup วันที่ 2026-11-04
+                    · fitting_global มีตารางแล้วแต่ยังว่าง เพราะฟีเจอร์ปิดอยู่ (FG_ENABLED = false)
+                    · ไฟล์แนบเก่าใน bucket task-attachments ต้องอัปโหลดเข้าโปรเจกต์ใหม่แยกต่างหาก
+                    · ทดสอบกับ API จำลองใน Chromium และทดสอบสิทธิ์ anon บนฐานข้อมูลจริงแล้ว
+                      ยังไม่ได้ทดสอบเปิดจากลิงก์จริงต่อ Supabase ตรง ๆ
   v1.2.3 2026-09-21 FEAT  นับเครื่องที่เปิดแอปอยู่ตอนนี้ (ดูในหน้าตั้งค่า ต้องใส่รหัสแอดมิน)
                     เหตุ: เจ้าของอยากรู้ว่ามีกี่เครื่อง/ใครเปิดลิงก์อยู่
                     · ใช้ Supabase Realtime Presence ไม่สร้างตาราง ไม่ยิง query เข้าฐานข้อมูล
@@ -1601,8 +1609,11 @@ body {
 <div id="toastContainer"></div>
 
 <script>
-const SUPABASE_URL = 'https://auohdroxlhwwoljjwxxl.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1b2hkcm94bGh3d29samp3eHhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1ODc5MTcsImV4cCI6MjA4ODE2MzkxN30.G350ZiXgzuKmCve7DAIMuB0G2s7ZfsgQcqqtmUPw6mg';
+/* ───────── v1.2.4: ย้ายฐานข้อมูลไปโปรเจกต์ใหม่ ─────────
+   เดิมชี้ไป auohdroxlhwwoljjwxxl ซึ่งถูกพักเพราะบิลค้าง แอปจึงต่อฐานข้อมูลไม่ได้
+   แก้โดยชี้ไปโปรเจกต์ CODE AX ที่สร้างตารางเฉพาะของแอปนี้ไว้แล้ว */
+const SUPABASE_URL = 'https://hxswugvfexwzcltdwbpz.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4c3d1Z3ZmZXh3emNsdGR3YnB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3OTUwNzQsImV4cCI6MjEwOTM3MTA3NH0.KvwpBNUgxWz1rBWKr6_-jOMccKgKK1t7A5IqFKwXUEE';
 const WORKER_PASSWORD = 'worker999';
 const BUCKET = 'task-attachments';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
