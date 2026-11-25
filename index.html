@@ -4510,5 +4510,23 @@ function closeSenderCmtPopup() {
   if (popup) { popup.classList.remove('open'); clearTimeout(popup._autoClose); }
 }
 </script>
+<script>
+/* ───────── กันหน้าต่างปิดเองตอนลากเมาส์หลุดกรอบ ─────────
+   เดิม: ลากคลุมข้อความในช่องพิมพ์แล้วปล่อยเมาส์นอกกรอบ → เบราว์เซอร์นับเป็น click บนพื้นหลัง
+         (event.target === overlay) → หน้าต่างปิด ข้อมูลที่แก้ค้างหาย
+   แก้: จำจุดที่กดเมาส์ลง ถ้าไม่ได้กดลงบนพื้นหลังเอง ให้ทิ้ง click นั้น (ใช้กับทุกหน้าต่างพื้นหลังเบลอ) */
+(function(){
+  let downT = null;
+  document.addEventListener('mousedown', e => { downT = e.target; }, true);
+  document.addEventListener('click', e => {
+    const t = e.target;
+    if (!t || downT === t || e.detail === 0) return;
+    const isBackdrop = (t.getAttribute && /event\.target\s*===\s*this/.test(t.getAttribute('onclick') || ''))
+      || (t.classList && (t.classList.contains('modal-overlay') || t.id === 'settingsOverlay'))
+      || (typeof t.onclick === 'function' && /e\.target\s*===\s*overlay/.test(String(t.onclick)));
+    if (isBackdrop) { e.stopImmediatePropagation(); e.preventDefault(); }
+  }, true);
+})();
+</script>
 </body>
 </html>
