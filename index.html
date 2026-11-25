@@ -3035,6 +3035,7 @@ function renderWorkerDetail(id) {
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <span class="status-badge ${ticket.status}">${statusLabel(ticket.status)}</span>
+        <button class="worker-del-btn" style="color:var(--accent);border-color:rgba(0,122,255,0.3)" onclick="openEditTicket('${id}',true)" title="แก้รายละเอียด / Code อ้างอิง ที่ผู้ส่งตั้งมาผิด">✏️ แก้ไข</button>
         <button class="worker-del-btn" onclick="deleteWorkerTicket('${id}')">🗑️ ลบ</button>
       </div>
     </div>`;
@@ -3720,29 +3721,33 @@ function updateQueueRoCard(ticket) {
 
 // ─── EDIT TICKET ───
 let editingTicketId = null;
+/* ฝั่งรับงานแก้ไขได้ด้วย (ผู้ส่งตั้งรายละเอียดผิด) — แก้ได้แม้งานเสร็จแล้ว */
+let editingAsWorker = false;
 
-function openEditTicket(id) {
+function openEditTicket(id, asWorker = false) {
   editingTicketId = id;
+  editingAsWorker = !!asWorker;
   sb.from('task_tickets').select('*').eq('id', id).single().then(({ data }) => {
     if (!data) { showToast('ไม่พบรายการ', 'warn', '⚠️'); return; }
-    if (data.status === 'done') { showToast('งานเสร็จแล้ว ไม่สามารถแก้ไขได้', 'warn', '⚠️'); return; }
+    if (data.status === 'done' && !editingAsWorker) { showToast('งานเสร็จแล้ว ไม่สามารถแก้ไขได้', 'warn', '⚠️'); return; }
     document.getElementById('editSenderName').value = data.sender_name || '';
     document.getElementById('editSubject').value = data.subject || '';
-    document.getElementById('editModalTitle').textContent = `✏️ แก้ไข #${data.ticket_ref || data.ticket_no}`;
+    document.getElementById('editModalTitle').textContent = `✏️ แก้ไข #${data.ticket_ref || data.ticket_no}${editingAsWorker ? ' (ฝั่งรับงาน)' : ''}`;
     renderDeptDropdown('editDept', data.department || '');
     const editRows = document.getElementById('editItemRows');
     editRows.innerHTML = '';
     const items = Array.isArray(data.items) ? data.items : [{ description: '', code: '' }];
-    items.forEach(item => addEditItemRow(item.description, item.ref_code || ''));
+    items.forEach((item, i) => addEditItemRow(item.description, item.ref_code || '', i));
     document.getElementById('editModal').style.display = 'flex';
     setTimeout(() => document.getElementById('editSenderName').focus(), 100);
   });
 }
 
-function addEditItemRow(val = '', refCode = '') {
+function addEditItemRow(val = '', refCode = '', origIdx = -1) {
   const rows = document.getElementById('editItemRows');
   const div = document.createElement('div');
   div.className = 'item-row';
+  div.dataset.orig = (typeof origIdx === 'number') ? origIdx : -1;
   div.innerHTML = `
     <span class="item-num">${rows.children.length + 1}</span>
     <div class="item-desc-wrap">
@@ -3775,7 +3780,7 @@ function editItemKeyNav(e, ta) {
   }
 }
 
-function closeEditModal() { document.getElementById('editModal').style.display = 'none'; editingTicketId = null; }
+function closeEditModal() { document.getElementById('editModal').style.display = 'none'; editingTicketId = null; editingAsWorker = false; }
 
 async function saveEditTicket() {
   const id = editingTicketId;
@@ -3787,12 +3792,22 @@ async function saveEditTicket() {
 
   const { data: current } = await sb.from('task_tickets').select('items').eq('id', id).single();
   const oldItems = Array.isArray(current?.items) ? current.items : [];
-  const newItems = [...document.querySelectorAll('#editItemRows .item-row')].map((row, i) => ({
-    ref_code: (row.querySelector('.item-ref-input')?.value || '').trim(),
-    description: (row.querySelector('.item-input')?.value || '').trim(),
-    code: oldItems[i]?.code || '',
-    comments: oldItems[i]?.comments || []
-  })).filter(it => it.description);
+  const asWorker = editingAsWorker;
+  /* ฝั่งรับงาน: Code AX ที่พิมพ์ค้างไว้แต่ยังไม่กดยืนยัน ให้คงไว้ */
+  const localT = asWorker ? workerTickets.find(t => t.id === id) : null;
+  const localItems = Array.isArray(localT?.items) ? localT.items : [];
+  const newItems = [...document.querySelectorAll('#editItemRows .item-row')].map(row => {
+    const o = parseInt(row.dataset.orig, 10);
+    const old = (o >= 0 && oldItems[o]) ? oldItems[o] : {};
+    const typed = (o >= 0 && localItems[o]) ? localItems[o].code : '';
+    return {
+      ...old,
+      ref_code: (row.querySelector('.item-ref-input')?.value || '').trim(),
+      description: (row.querySelector('.item-input')?.value || '').trim(),
+      code: typed || old.code || '',
+      comments: old.comments || []
+    };
+  }).filter(it => it.description);
 
   if (!newItems.length) { showToast('กรุณาใส่รายการอย่างน้อย 1 รายการ', 'warn', '⚠️'); return; }
 
@@ -3807,7 +3822,12 @@ async function saveEditTicket() {
   showToast('แก้ไขเรียบร้อยแล้ว ✏️', 'success', '✅');
   closeEditModal();
   const { data: updated } = await sb.from('task_tickets').select('*').eq('id', id).single();
-  if (updated) updateMyTicketCard(updated);
+  if (updated && asWorker) {
+    updateLocalTicket(id, updated);
+    if (selectedTicketId === id) renderWorkerDetail(id);
+    renderWorkerDeptTabs();
+    renderWorkerQueue();
+  } else if (updated) updateMyTicketCard(updated);
 }
 
 // ─── WORKER NEW TICKET POPUP ───
